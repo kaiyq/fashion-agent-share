@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>选品Agent · 最终版</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
+
+:root {
+  --bg: #0d0d12;
+  --s1: #13131c;
+  --s2: #1a1a26;
+  --s3: #222233;
+  --border: #2c2c42;
+  --accent: #e84a6e;
+  --blue: #4a8fe8;
+  --green: #4ae89a;
+  --yellow: #e8c84a;
+  --text: #eeeef5;
+  --muted: #7070a0;
+  --faint: #3a3a55;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 290px 1fr;
+  grid-template-rows: 48px 1fr;
+}
+
+/* ── Topbar ── */
+.topbar {
+  grid-column: 1/-1;
+  background: var(--s1);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.topbar-left { display:flex; align-items:center; gap:12px; }
+
+.logo {
+  width:24px; height:24px; background:var(--accent);
+  border-radius:6px; display:flex; align-items:center; justify-content:center;
+  font-family:'Syne',sans-serif; font-size:11px; font-weight:800; color:white;
+}
+
+.topbar-title {
+  font-family:'Syne',sans-serif; font-size:13px; font-weight:700;
+}
+
+.topbar-sub { font-size:11px; color:var(--muted); }
+
+.server-pill {
+  display:flex; align-items:center; gap:6px;
+  padding:4px 10px; border-radius:100px;
+  border:1px solid var(--border); font-size:11px; color:var(--muted);
+}
+
+.pill-dot { width:5px; height:5px; border-radius:50%; background:var(--faint); }
+.pill-dot.ok { background:var(--green); }
+.pill-dot.fail { background:var(--accent); }
+.pill-dot.checking { background:var(--yellow); animation:blink 1s infinite; }
+
+/* ── Sidebar ── */
+.sidebar {
+  background: var(--s1);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.sec-label {
+  font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase;
+  color:var(--muted); margin:16px 0 8px;
+}
+.sec-label:first-child { margin-top:0; }
+
+select, input, textarea {
+  width:100%; background:var(--s2); border:1px solid var(--border);
+  border-radius:7px; padding:8px 12px; color:var(--text);
+  font-family:'DM Sans',sans-serif; font-size:13px; outline:none;
+  transition:border-color 0.15s; -webkit-appearance:none; margin-bottom:7px;
+}
+select {
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237070a0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 10px center;
+  padding-right:28px; cursor:pointer;
+}
+select:focus, input:focus, textarea:focus { border-color:var(--accent); }
+input[type="password"] { letter-spacing:2px; }
+textarea { resize:none; height:60px; line-height:1.5; font-size:12px; }
+
+.key-row { position:relative; }
+.key-row input { padding-right:60px; }
+.key-toggle {
+  position:absolute; right:8px; top:50%; transform:translateY(-50%);
+  background:var(--s3); border:1px solid var(--border); border-radius:4px;
+  padding:2px 7px; font-size:10px; color:var(--muted); cursor:pointer;
+  transition:all 0.15s;
+}
+.key-toggle:hover { color:var(--text); border-color:var(--muted); }
+
+.tag-wrap { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:7px; }
+.tag {
+  padding:4px 9px; border-radius:100px; background:var(--s2);
+  border:1px solid var(--border); font-size:11px; cursor:pointer;
+  transition:all 0.15s; color:var(--muted); user-select:none;
+}
+.tag:hover { border-color:var(--accent); color:var(--accent); }
+.tag.on { background:rgba(232,74,110,0.12); border-color:var(--accent); color:var(--accent); }
+
+.run-btn {
+  width:100%; margin-top:16px; padding:12px;
+  background:var(--accent); border:none; border-radius:9px; color:white;
+  font-family:'Syne',sans-serif; font-size:12px; font-weight:700;
+  letter-spacing:1px; text-transform:uppercase; cursor:pointer;
+  transition:all 0.2s;
+}
+.run-btn:hover { background:#cc3357; transform:translateY(-1px); }
+.run-btn:active { transform:translateY(0); }
+.run-btn:disabled { opacity:0.35; cursor:not-allowed; transform:none; }
+
+/* Memory mini panel */
+.mem-panel {
+  margin-top:16px; padding:12px;
+  background:var(--s2); border:1px solid var(--border); border-radius:9px;
+}
+.mem-title {
+  font-family:'Syne',sans-serif; font-size:11px; font-weight:700;
+  color:var(--muted); letter-spacing:1px; text-transform:uppercase;
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
+}
+.mem-clear { font-size:10px; color:var(--muted); cursor:pointer; transition:color 0.15s; }
+.mem-clear:hover { color:var(--accent); }
+.mem-stats { display:flex; gap:8px; flex-wrap:wrap; }
+.mem-stat {
+  flex:1; min-width:60px; padding:8px;
+  background:var(--s1); border:1px solid var(--border); border-radius:6px;
+  text-align:center;
+}
+.mem-stat-num { font-family:'Syne',sans-serif; font-size:18px; font-weight:800; }
+.mem-stat-num.green { color:var(--green); }
+.mem-stat-num.red { color:var(--accent); }
+.mem-stat-num.blue { color:var(--blue); }
+.mem-stat-label { font-size:10px; color:var(--muted); margin-top:2px; }
+
+.mem-tags { margin-top:10px; }
+.mem-tag-row { font-size:11px; margin-bottom:5px; color:var(--muted); line-height:1.6; }
+.mem-tag-row span { color:var(--text); }
+
+/* ── Main ── */
+.main {
+  overflow-y: auto;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Step cards */
+.step {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.step.active { border-color:var(--accent); }
+.step.done { border-color:var(--green); }
+.step.err { border-color:var(--yellow); }
+
+.step-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:13px 18px; background:var(--s2);
+  border-bottom:1px solid var(--border);
+}
+.step-hl { display:flex; align-items:center; gap:10px; }
+.step-num {
+  width:22px; height:22px; border-radius:5px; background:var(--s3);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'DM Mono',monospace; font-size:10px; color:var(--muted);
+}
+.step.active .step-num { background:rgba(232,74,110,0.2); color:var(--accent); }
+.step.done .step-num { background:rgba(74,232,154,0.15); color:var(--green); }
+.step-name { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; }
+.step-hr { display:flex; align-items:center; gap:8px; }
+.src-chip {
+  font-family:'DM Mono',monospace; font-size:10px; color:var(--muted);
+  background:var(--s3); padding:3px 8px; border-radius:4px;
+}
+.sdot { width:5px; height:5px; border-radius:50%; background:var(--faint); }
+.sdot.run { background:var(--yellow); animation:blink 0.8s infinite; }
+.sdot.ok { background:var(--green); }
+.sdot.err { background:var(--accent); }
+.stxt { font-size:11px; color:var(--muted); }
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.step-body { padding:16px 18px; display:none; }
+.step-body.show { display:block; }
+
+/* Tool call log */
+.tcall {
+  display:flex; align-items:flex-start; gap:8px;
+  padding:8px 12px; background:var(--s2);
+  border:1px solid var(--border); border-radius:7px;
+  margin-bottom:12px;
+  font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); line-height:1.6;
+}
+.tcall strong { color:var(--blue); font-weight:500; }
+
+.loading { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; }
+.spin {
+  width:12px; height:12px; border:2px solid var(--faint);
+  border-top-color:var(--accent); border-radius:50%;
+  animation:spin 0.7s linear infinite; flex-shrink:0;
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* Product grid */
+.pgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:9px; margin-bottom:12px; }
+.pcard {
+  background:var(--s2); border:1px solid var(--border);
+  border-radius:8px; padding:11px; font-size:12px;
+}
+.ptitle {
+  font-weight:500; line-height:1.4; margin-bottom:5px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.pprice { font-family:'Syne',sans-serif; font-size:13px; font-weight:800; color:var(--accent); margin-bottom:3px; }
+.pmeta { color:var(--muted); font-size:11px; line-height:1.4; }
+.psrc {
+  display:inline-block; padding:2px 6px; border-radius:3px;
+  font-size:10px; font-weight:600; margin-top:5px; letter-spacing:0.3px;
+}
+.psrc-tb { background:rgba(232,74,110,0.15); color:var(--accent); }
+.psrc-bv { background:rgba(74,143,232,0.15); color:var(--blue); }
+
+.stats { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:11px; }
+.schip {
+  padding:4px 9px; background:var(--s2); border:1px solid var(--border);
+  border-radius:100px; font-size:11px; color:var(--muted);
+}
+.schip strong { color:var(--text); font-weight:600; }
+
+/* Decision */
+.decision {
+  background:var(--s2);
+  border:1px solid rgba(232,74,110,0.2);
+  border-radius:10px; padding:18px;
+}
+.dtext { font-size:14px; line-height:1.9; white-space:pre-wrap; }
+
+.conf-row {
+  display:flex; align-items:center; gap:10px;
+  margin-top:14px; padding-top:14px; border-top:1px solid var(--border);
+}
+.conf-label { font-size:11px; color:var(--muted); white-space:nowrap; }
+.conf-bar { flex:1; height:3px; background:var(--faint); border-radius:2px; overflow:hidden; }
+.conf-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--blue)); border-radius:2px; transition:width 1.2s cubic-bezier(0.4,0,0.2,1); width:0; }
+.conf-val { font-family:'Syne',sans-serif; font-size:13px; font-weight:800; color:var(--accent); }
+
+/* Memory badge in decision */
+.mem-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:3px 8px; background:rgba(74,232,154,0.1);
+  border:1px solid rgba(74,232,154,0.25); border-radius:4px;
+  font-size:11px; color:var(--green); margin-bottom:12px;
+}
+
+/* Error */
+.errbox {
+  padding:10px 14px; background:rgba(232,74,110,0.08);
+  border:1px solid rgba(232,74,110,0.2); border-radius:7px;
+  font-size:13px; color:var(--accent); line-height:1.5;
+}
+
+/* Actions */
+.actions { display:flex; gap:9px; margin-top:12px; }
+.abtn {
+  flex:1; padding:11px; border-radius:8px; border:1px solid;
+  font-family:'Syne',sans-serif; font-size:11px; font-weight:700;
+  letter-spacing:0.5px; cursor:pointer; transition:all 0.15s; text-transform:uppercase;
+}
+.abtn-ok { background:rgba(74,232,154,0.1); border-color:var(--green); color:var(--green); }
+.abtn-ok:hover { background:rgba(74,232,154,0.2); }
+.abtn-no { background:rgba(232,74,110,0.08); border-color:var(--accent); color:var(--accent); }
+.abtn-no:hover { background:rgba(232,74,110,0.15); }
+.abtn-rs { background:var(--s2); border-color:var(--border); color:var(--muted); }
+.abtn-rs:hover { border-color:var(--muted); color:var(--text); }
+
+/* Empty */
+.empty {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:360px; color:var(--muted); text-align:center; gap:10px;
+}
+.empty-g {
+  font-family:'Syne',sans-serif; font-size:48px; font-weight:800;
+  opacity:0.08; letter-spacing:-2px;
+}
+.empty p { font-size:13px; line-height:1.7; max-width:260px; }
+
+/* Progress */
+#pbar { position:fixed; top:48px; left:0; height:2px; background:var(--accent); transition:width 0.4s; z-index:100; }
+
+/* History drawer */
+.history-btn {
+  position:fixed; bottom:20px; right:20px;
+  background:var(--s2); border:1px solid var(--border);
+  border-radius:100px; padding:8px 14px;
+  font-family:'Syne',sans-serif; font-size:11px; font-weight:700;
+  color:var(--muted); cursor:pointer; transition:all 0.2s;
+  display:flex; align-items:center; gap:6px;
+}
+.history-btn:hover { border-color:var(--blue); color:var(--blue); }
+.hbadge {
+  background:var(--blue); color:white; border-radius:100px;
+  padding:1px 6px; font-size:10px; font-weight:700;
+}
+
+.drawer {
+  position:fixed; bottom:60px; right:20px; width:320px;
+  background:var(--s1); border:1px solid var(--border);
+  border-radius:12px; padding:16px; display:none;
+  max-height:400px; overflow-y:auto;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+}
+.drawer.show { display:block; }
+.drawer-title {
+  font-family:'Syne',sans-serif; font-size:12px; font-weight:700;
+  color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:12px;
+}
+.hitem {
+  padding:10px; background:var(--s2); border:1px solid var(--border);
+  border-radius:7px; margin-bottom:7px; font-size:12px;
+}
+.hitem-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+.hitem-cat { font-family:'Syne',sans-serif; font-size:12px; font-weight:700; }
+.hitem-dec {
+  font-size:10px; padding:2px 7px; border-radius:100px;
+  font-weight:600; letter-spacing:0.5px;
+}
+.dec-ok { background:rgba(74,232,154,0.15); color:var(--green); }
+.dec-no { background:rgba(232,74,110,0.12); color:var(--accent); }
+.hitem-meta { color:var(--muted); font-size:11px; }
+</style>
+</head>
+<body>
+
+<div id="pbar" style="width:0"></div>
+
+<!-- Topbar -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo">SA</div>
+    <span class="topbar-title">选品 Agent</span>
+    <span class="topbar-sub">· 分享版 · Brave + 淘宝 + AI记忆</span>
+  </div>
+  <div class="server-pill">
+    <div class="pill-dot checking" id="sDot"></div>
+    <span id="sTxt">检测服务器…</span>
+  </div>
+</header>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+
+  <div class="sec-label">AI 模型</div>
+  <select id="aiModel">
+    <option value="Qwen/Qwen2.5-72B-Instruct">Qwen2.5-72B（推荐）</option>
+    <option value="Qwen/Qwen2.5-7B-Instruct">Qwen2.5-7B（快速）</option>
+    <option value="deepseek-ai/DeepSeek-V3">DeepSeek-V3（最强）</option>
+    <option value="deepseek-ai/DeepSeek-R1">DeepSeek-R1（推理）</option>
+    <option value="THUDM/glm-4-9b-chat">GLM-4-9B（轻量）</option>
+  </select>
+
+  <div class="sec-label">选品参数</div>
+  <select id="category">
+    <option>夏季连衣裙</option><option>休闲上衣</option><option>运动套装</option>
+    <option>度假风套装</option><option>牛仔裤</option><option>针织开衫</option>
+  </select>
+  <select id="market">
+    <option value="US">美国市场</option><option value="UK">英国市场</option>
+    <option value="EU">欧洲市场</option><option value="Global">全球</option>
+  </select>
+  <select id="audience">
+    <option>18-24岁 Z世代</option><option>25-35岁 都市女性</option><option>学生群体</option>
+  </select>
+  <select id="price">
+    <option>$8-15 超低价</option><option>$15-25 大众价</option><option>$25-50 中端价</option>
+  </select>
+
+  <div class="sec-label">风格偏好</div>
+  <div class="tag-wrap" id="tags">
+    <span class="tag" onclick="T(this)">多巴胺色系</span>
+    <span class="tag" onclick="T(this)">法式复古</span>
+    <span class="tag" onclick="T(this)">美式休闲</span>
+    <span class="tag" onclick="T(this)">Y2K</span>
+    <span class="tag" onclick="T(this)">极简主义</span>
+    <span class="tag" onclick="T(this)">蕾丝甜美</span>
+    <span class="tag" onclick="T(this)">街头潮流</span>
+  </div>
+
+  <div class="sec-label">补充说明</div>
+  <textarea id="extra" placeholder="例如：避免上季重复款；优先退货率低的…"></textarea>
+
+  <button class="run-btn" id="runBtn" onclick="run()">▶ 启动 Agent</button>
+
+  <!-- Memory panel -->
+  <div class="mem-panel" id="memPanel">
+    <div class="mem-title">
+      记忆库
+      <span class="mem-clear" onclick="clearMem()">清空</span>
+    </div>
+    <div class="mem-stats">
+      <div class="mem-stat"><div class="mem-stat-num blue" id="mTotal">0</div><div class="mem-stat-label">总分析</div></div>
+      <div class="mem-stat"><div class="mem-stat-num green" id="mOk">0</div><div class="mem-stat-label">已确认</div></div>
+      <div class="mem-stat"><div class="mem-stat-num red" id="mNo">0</div><div class="mem-stat-label">已拒绝</div></div>
+    </div>
+    <div class="mem-tags" id="memTags"></div>
+  </div>
+
+</aside>
+
+<!-- Main -->
+<main class="main" id="main">
+  <div class="empty" id="empty">
+    <div class="empty-g">选品</div>
+    <p>填写左侧参数，启动Agent<br>Brave趋势 · 淘宝竞品 · AI决策 · 偏好记忆</p>
+  </div>
+
+  <!-- Steps (hidden) -->
+  <div class="step" id="s1" style="display:none">
+    <div class="step-head">
+      <div class="step-hl">
+        <div class="step-num">01</div>
+        <div class="step-name">趋势信号抓取</div>
+      </div>
+      <div class="step-hr">
+        <span class="src-chip">Brave Search</span>
+        <div class="sdot" id="d1"></div>
+        <span class="stxt" id="t1">待执行</span>
+      </div>
+    </div>
+    <div class="step-body" id="b1"></div>
+  </div>
+
+  <div class="step" id="s2" style="display:none">
+    <div class="step-head">
+      <div class="step-hl">
+        <div class="step-num">02</div>
+        <div class="step-name">淘宝竞品扫描</div>
+      </div>
+      <div class="step-hr">
+        <span class="src-chip">淘宝 DataHub</span>
+        <div class="sdot" id="d2"></div>
+        <span class="stxt" id="t2">待执行</span>
+      </div>
+    </div>
+    <div class="step-body" id="b2"></div>
+  </div>
+
+  <div class="step" id="s3" style="display:none">
+    <div class="step-head">
+      <div class="step-hl">
+        <div class="step-num">03</div>
+        <div class="step-name">AI综合分析</div>
+      </div>
+      <div class="step-hr">
+        <span class="src-chip" id="modelChip">AI</span>
+        <div class="sdot" id="d3"></div>
+        <span class="stxt" id="t3">待执行</span>
+      </div>
+    </div>
+    <div class="step-body" id="b3"></div>
+  </div>
+
+  <div id="actRow" style="display:none">
+    <div class="actions">
+      <button class="abtn abtn-ok" onclick="decide('confirmed')">✓ 确认上新</button>
+      <button class="abtn abtn-no" onclick="decide('rejected')">✗ 不采纳</button>
+      <button class="abtn abtn-rs" onclick="reset()">↺ 重新分析</button>
+    </div>
+  </div>
+</main>
+
+<!-- History drawer -->
+<button class="history-btn" onclick="toggleDrawer()">
+  历史记录 <span class="hbadge" id="hBadge">0</span>
+</button>
+<div class="drawer" id="drawer">
+  <div class="drawer-title">分析历史</div>
+  <div id="drawerList"></div>
+</div>
+
+<script>
+const P = '';
+const MEMORY_KEY = 'fashion-agent-memory-v1';
+let styles = [], lastResult = null, drawerOpen = false;
+
+// ── Server check ──
+async function checkServer() {
+  try {
+    const r = await fetch(P + '/api/health', { signal: AbortSignal.timeout(4000) });
+    if (!r.ok) throw new Error('api_unavailable');
+    setServer('ok');
+    loadMemory();
+  } catch {
+    setServer('fail');
+    loadMemory();
+  }
+}
+
+function setServer(s) {
+  const dot = document.getElementById('sDot');
+  const txt = document.getElementById('sTxt');
+  if (s === 'ok') { dot.className='pill-dot ok'; txt.textContent='云端 API 已连接 ✓'; }
+  else { dot.className='pill-dot fail'; txt.textContent='API 未连接 · 检查 Vercel 环境变量'; }
+}
+
+checkServer();
+
+// ── Tag toggle ──
+function T(el) {
+  el.classList.toggle('on');
+  styles = [...document.querySelectorAll('.tag.on')].map(e => e.textContent);
+}
+
+// ── Helpers ──
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function prog(p) { document.getElementById('pbar').style.width = p + '%'; }
+
+function setState(n, s) {
+  const card = document.getElementById('s'+n);
+  const dot = document.getElementById('d'+n);
+  const txt = document.getElementById('t'+n);
+  const body = document.getElementById('b'+n);
+  card.className = 'step ' + (s==='active'?'active':s==='done'?'done':s==='err'?'err':'');
+  dot.className = 'sdot ' + (s==='active'?'run':s==='done'?'ok':s==='err'?'err':'');
+  txt.textContent = s==='active'?'执行中…':s==='done'?'完成 ✓':s==='err'?'部分失败':'待执行';
+  body.classList.add('show');
+  body.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function tcall(icon, name, params) {
+  return `<div class="tcall"><span>${icon}</span><div>调用：<strong>${name}</strong><br>参数：${params}</div></div>`;
+}
+
+function spin(msg) {
+  return `<div class="loading"><div class="spin"></div>${msg}</div>`;
+}
+
+// ── API calls ──
+async function brave(q) {
+  const r = await fetch(`${P}/api/brave?q=${encodeURIComponent(q)}`);
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  return (d.web?.results || []).map(x => ({ title:x.title, desc:x.description, url:x.url }));
+}
+
+async function taobao(q) {
+  const r = await fetch(`${P}/api/taobao?q=${encodeURIComponent(q)}`);
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  return (d.items || []).map(p => ({
+    title: p.title || '—',
+    price: p.price || '—',
+    originalPrice: p.originalPrice || '',
+    sales: p.sales || '0',
+    shop: p.shop || '',
+    storeType: p.storeType || ''
+  }));
+}
+
+async function callAI(system, user) {
+  const model = document.getElementById('aiModel').value;
+  const r = await fetch(`${P}/api/ai`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      max_tokens: 1024,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user }
+      ]
+    })
+  });
+  const d = await r.json();
+  if (d.error) throw new Error(typeof d.error === 'object' ? JSON.stringify(d.error) : d.error);
+  return d.choices[0].message.content;
+}
+
+// ── Memory ──
+function emptyMemory() {
+  return { sessions: [], preferences: { liked: [], disliked: [] }, stats: { total: 0, confirmed: 0, rejected: 0 } };
+}
+
+function getMemory() {
+  try {
+    const raw = localStorage.getItem(MEMORY_KEY);
+    return raw ? { ...emptyMemory(), ...JSON.parse(raw) } : emptyMemory();
+  } catch(e) {
+    return emptyMemory();
+  }
+}
+
+function setMemory(m) {
+  localStorage.setItem(MEMORY_KEY, JSON.stringify(m));
+}
+
+async function loadMemory() {
+  try {
+    const m = getMemory();
+    document.getElementById('mTotal').textContent = m.stats.total;
+    document.getElementById('mOk').textContent = m.stats.confirmed;
+    document.getElementById('mNo').textContent = m.stats.rejected;
+    document.getElementById('hBadge').textContent = m.sessions.length;
+
+    const tagsEl = document.getElementById('memTags');
+    let html = '';
+    if (m.preferences.liked.length)
+      html += `<div class="mem-tag-row">✓ 偏好：<span>${m.preferences.liked.slice(-3).join('、')}</span></div>`;
+    if (m.preferences.disliked.length)
+      html += `<div class="mem-tag-row">✗ 规避：<span>${m.preferences.disliked.slice(-3).join('、')}</span></div>`;
+    tagsEl.innerHTML = html;
+
+    // Drawer
+    const list = document.getElementById('drawerList');
+    list.innerHTML = m.sessions.slice().reverse().map(s =>
+      `<div class="hitem">
+        <div class="hitem-top">
+          <span class="hitem-cat">${s.category || '—'}</span>
+          <span class="hitem-dec ${s.decision==='confirmed'?'dec-ok':'dec-no'}">${s.decision==='confirmed'?'已上新':'已拒绝'}</span>
+        </div>
+        <div class="hitem-meta">${s.style||''} · ${s.timestamp||''}</div>
+      </div>`
+    ).join('') || '<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px">暂无记录</div>';
+  } catch(e) {}
+}
+
+async function saveMemory(decision) {
+  try {
+    const m = getMemory();
+    const session = {
+      category: document.getElementById('category').value,
+      style: styles.join('、') || '不限',
+      market: document.getElementById('market').value,
+      decision,
+      timestamp: new Date().toLocaleString('zh-CN', { hour12: false })
+    };
+    m.sessions.push(session);
+    m.stats.total += 1;
+    if (decision === 'confirmed') {
+      m.stats.confirmed += 1;
+      if (session.style && !m.preferences.liked.includes(session.style)) m.preferences.liked.push(session.style);
+    } else {
+      m.stats.rejected += 1;
+      if (session.style && !m.preferences.disliked.includes(session.style)) m.preferences.disliked.push(session.style);
+    }
+    if (m.sessions.length > 50) m.sessions = m.sessions.slice(-50);
+    setMemory(m);
+    await loadMemory();
+  } catch(e) {}
+}
+
+async function clearMem() {
+  if (!confirm('确认清空记忆库？')) return;
+  setMemory(emptyMemory());
+  await loadMemory();
+}
+
+// ── Main run ──
+async function run() {
+  const cat = document.getElementById('category').value;
+  const market = document.getElementById('market').value;
+  const audience = document.getElementById('audience').value;
+  const price = document.getElementById('price').value;
+  const extra = document.getElementById('extra').value;
+  const styleStr = styles.length ? styles.join('、') : '不限';
+  const model = document.getElementById('aiModel').value;
+
+  document.getElementById('modelChip').textContent = model.split('/').pop();
+
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true; btn.textContent = '⟳ 运行中…';
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('actRow').style.display = 'none';
+  lastResult = null;
+
+  ['s1','s2','s3'].forEach(id => {
+    document.getElementById(id).style.display = 'block';
+    document.getElementById(id).className = 'step';
+  });
+  [1,2,3].forEach(n => {
+    document.getElementById('d'+n).className = 'sdot';
+    document.getElementById('t'+n).textContent = '待执行';
+    document.getElementById('b'+n).className = 'step-body';
+    document.getElementById('b'+n).innerHTML = '';
+  });
+
+  prog(5);
+
+  // ── 读取记忆上下文 ──
+  let memCtx = '';
+  try {
+    const m = getMemory();
+    if (m.preferences.liked.length || m.preferences.disliked.length) {
+      memCtx = `\n\n== 买手偏好记忆 ==\n`;
+      if (m.preferences.liked.length) memCtx += `历史确认偏好：${m.preferences.liked.join('、')}\n`;
+      if (m.preferences.disliked.length) memCtx += `历史拒绝方向：${m.preferences.disliked.join('、')}\n`;
+      memCtx += `请在分析时参考以上偏好，规避已拒绝方向，优先强化偏好方向。`;
+    }
+  } catch(e) {}
+
+  let braveRes = [], tbRes = [];
+
+  // ── STEP 1: Brave ──
+  setState(1, 'active'); prog(18);
+  const bq = `${cat} 流行趋势 2025 穿搭 ${styleStr !== '不限' ? styleStr : ''}`;
+  document.getElementById('b1').innerHTML = tcall('🔍','brave_search()',`"${bq}"`) + spin('正在搜索趋势内容…');
+
+  try {
+    braveRes = await brave(bq);
+    const cards = braveRes.map(r =>
+      `<div class="pcard">
+        <div class="ptitle">${r.title}</div>
+        <div class="pmeta">${(r.desc||'').slice(0,80)}…</div>
+        <span class="psrc psrc-bv">Brave</span>
+      </div>`).join('');
+    document.getElementById('b1').innerHTML =
+      tcall('🔍','brave_search()',`"${bq}"`) +
+      `<div class="stats"><div class="schip">返回 <strong>${braveRes.length}</strong> 条真实结果</div></div>
+       <div class="pgrid">${cards}</div>`;
+    setState(1, 'done');
+  } catch(e) {
+    document.getElementById('b1').innerHTML = tcall('🔍','brave_search()',`"${bq}"`) + `<div class="errbox">⚠ ${e.message}</div>`;
+    setState(1, 'err');
+  }
+
+  prog(38); await sleep(400);
+
+  // ── STEP 2: 淘宝 ──
+  setState(2, 'active'); prog(55);
+  const tq = `${cat} 新款 ${styleStr !== '不限' ? styleStr : ''}`.trim();
+  document.getElementById('b2').innerHTML = tcall('🛒','taobao_search()',`"${tq}"`) + spin('正在扫描淘宝商品…');
+
+  try {
+    tbRes = await taobao(tq);
+    const prices = tbRes.map(p => parseFloat(String(p.price).replace(/[^0-9.]/g,''))).filter(n=>!isNaN(n)&&n>0);
+    const avg = prices.length ? (prices.reduce((a,b)=>a+b,0)/prices.length).toFixed(0) : null;
+    const cards = tbRes.map(p =>
+      `<div class="pcard">
+        <div class="ptitle">${p.title}</div>
+        <div class="pprice">¥${p.price}</div>
+        <div class="pmeta">${p.sales?`月销 ${p.sales}`:''} ${p.shop?`· ${p.shop}`:''}</div>
+        <span class="psrc psrc-tb">淘宝</span>
+      </div>`).join('');
+    document.getElementById('b2').innerHTML =
+      tcall('🛒','taobao_search()',`"${tq}"`) +
+      `<div class="stats">
+        <div class="schip">返回 <strong>${tbRes.length}</strong> 个商品</div>
+        ${avg ? `<div class="schip">均价 <strong>¥${avg}</strong></div>` : ''}
+      </div>
+      <div class="pgrid">${cards}</div>`;
+    setState(2, 'done');
+  } catch(e) {
+    document.getElementById('b2').innerHTML = tcall('🛒','taobao_search()',`"${tq}"`) + `<div class="errbox">⚠ ${e.message}</div>`;
+    setState(2, 'err');
+  }
+
+  prog(75); await sleep(400);
+
+  // ── STEP 3: AI ──
+  setState(3, 'active'); prog(88);
+  document.getElementById('b3').innerHTML =
+    tcall('🧠', 'ai_analyze()', `${model.split('/').pop()} · ${braveRes.length}条趋势 + ${tbRes.length}个商品`) +
+    spin('AI正在综合分析…');
+
+  const braveCtx = braveRes.length ? braveRes.map(r=>`- ${r.title}: ${r.desc||''}`).join('\n') : '（无数据）';
+  const tbCtx = tbRes.length ? tbRes.map(p=>`- ${p.title} | ¥${p.price} | 月销:${p.sales||'未知'}`).join('\n') : '（无数据）';
+  const prices2 = tbRes.map(p=>parseFloat(String(p.price).replace(/[^0-9.]/g,''))).filter(n=>!isNaN(n)&&n>0);
+  const avgP = prices2.length ? (prices2.reduce((a,b)=>a+b,0)/prices2.length).toFixed(0) : '未知';
+
+  try {
+    const result = await callAI(
+      `你是快时尚选品分析师，服务于类似SHEIN的跨境电商平台。基于真实数据给出专业选品建议。
+
+输出格式（严格遵守）：
+【市场洞察】2-3句总结趋势和竞品现状
+
+【TOP选品建议】
+款式名称：
+核心卖点：（3个要点）
+视觉方向：（颜色/版型/细节）
+
+【定价策略】基于淘宝均价¥${avgP}，给出SHEIN建议定价和逻辑
+
+【风险提示】1条主要风险
+
+【置信度】：纯数字0-100
+
+中文输出，总字数300字以内。`,
+      `选品需求：${cat}，市场：${market}，人群：${audience}，价格带：${price}，风格：${styleStr}
+补充：${extra || '无'}
+
+趋势数据（Brave Search）：
+${braveCtx}
+
+淘宝竞品数据（均价¥${avgP}）：
+${tbCtx}
+${memCtx}`
+    );
+
+    const confMatch = result.match(/【置信度】[：:]\s*(\d+)/);
+    const conf = confMatch ? parseInt(confMatch[1]) : 75;
+    const clean = result.replace(/【置信度】[：:]\s*\d+/, '').trim();
+    lastResult = { result: clean, conf };
+
+    const memBadge = memCtx
+      ? `<div class="mem-badge">🧠 已读取买手偏好记忆，分析已个性化</div>`
+      : '';
+
+    document.getElementById('b3').innerHTML =
+      tcall('🧠','ai_analyze()',`${model.split('/').pop()} · ${braveRes.length}条趋势 + ${tbRes.length}个商品`) +
+      `<div class="decision">
+        ${memBadge}
+        <div class="dtext">${clean}</div>
+        <div class="conf-row">
+          <span class="conf-label">置信度</span>
+          <div class="conf-bar"><div class="conf-fill" id="cf"></div></div>
+          <span class="conf-val">${conf}%</span>
+        </div>
+      </div>`;
+
+    setTimeout(() => { const f=document.getElementById('cf'); if(f) f.style.width=conf+'%'; }, 200);
+    setState(3, 'done');
+  } catch(e) {
+    document.getElementById('b3').innerHTML =
+      tcall('🧠','ai_analyze()','') + `<div class="errbox">⚠ ${e.message}</div>`;
+    setState(3, 'err');
+  }
+
+  prog(100);
+  document.getElementById('actRow').style.display = 'block';
+  document.getElementById('actRow').scrollIntoView({ behavior:'smooth' });
+  btn.disabled = false; btn.textContent = '▶ 重新分析';
+  setTimeout(() => prog(0), 800);
+}
+
+// ── Decide ──
+async function decide(d) {
+  await saveMemory(d);
+  if (d === 'confirmed') {
+    alert('✓ 已确认上新，记忆库已更新');
+  } else {
+    alert('✗ 已记录为拒绝，下次分析将规避此方向');
+  }
+}
+
+function reset() {
+  document.getElementById('empty').style.display = 'flex';
+  ['s1','s2','s3'].forEach(id => document.getElementById(id).style.display='none');
+  document.getElementById('actRow').style.display = 'none';
+  document.getElementById('runBtn').textContent = '▶ 启动 Agent';
+  prog(0);
+}
+
+function toggleDrawer() {
+  drawerOpen = !drawerOpen;
+  document.getElementById('drawer').classList.toggle('show', drawerOpen);
+}
+</script>
+</body>
+</html>
